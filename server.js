@@ -4,28 +4,21 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 
 dotenv.config();
-
 const app = express();
 app.use(express.json());
 
-// CORS setup (allow both GitHub Pages & localhost)
-const allowedOrigins = [
-  "https://reunknown.github.io", // replace with your GH username
-  "https://reunknown.github.io/Straight-AI",
-  "http://localhost:3000",
-];
+// ✅ Allow your GitHub Pages frontend
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin)) cb(null, true);
-      else cb(new Error("CORS not allowed"));
-    },
+    origin: [
+      "https://reunknown.github.io",
+      "https://reunknown.github.io/Straight-AI",
+      "http://localhost:3000"
+    ]
   })
 );
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Memory for admin view
 const history = [];
 
 app.post("/straight", async (req, res) => {
@@ -42,9 +35,9 @@ app.post("/straight", async (req, res) => {
           role: "system",
           content: `
 You are Straight AI.
+Answer only in short, blunt phrases.
 If the question cannot be answered simply, reply exactly: Too gay.
-Otherwise, respond in one short blunt sentence or a few words.
-If you fail to think, reply: The AI became too gay to provide service.`,
+If internal failure, reply: The AI became too gay to provide service.`,
         },
         { role: "user", content: question },
       ],
@@ -56,11 +49,12 @@ If you fail to think, reply: The AI became too gay to provide service.`,
     if (!answer) answer = "The AI became too gay to provide service.";
     res.json({ answer });
   } catch (err) {
-    console.error("OpenAI error:", err.message);
+    console.error("Error contacting OpenAI:", err.message);
     res.status(500).json({ answer: "Error contacting OpenAI." });
   }
 });
 
+// ✅ Admin search history (Render-only env var)
 app.get("/history", (req, res) => {
   if (req.query.code === process.env.ADMIN_CODE) return res.json(history);
   res.status(403).json({ error: "Forbidden" });
