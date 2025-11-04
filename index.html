@@ -17,6 +17,8 @@
   </div>
 
 <script>
+  const BACKEND_URL = "https://straight-ai.onrender.com"; // 🔗 your live backend
+
   const input = document.getElementById("question");
   const responseEl = document.getElementById("response");
   const footer = document.getElementById("footer");
@@ -27,7 +29,7 @@
   let fundMode = false;
   let thinkingInterval = null;
   let cancelTyping = false;
-  let activeRequest = 0; // track current request id
+  let activeRequest = 0;
 
   function startThinkingAnimation() {
     footer.style.opacity = 0;
@@ -55,8 +57,6 @@
     }
     footer.style.opacity = 1;
   }
-
-  // --- Fake legal & fund text blocks ---
 
   const PRIVACY = `Straight AI Privacy Policy
 
@@ -188,7 +188,7 @@ Please fill out the form below to send $0.00 to the void.
     cancelTyping = true;
     stopThinkingAnimation();
     try {
-      const res = await fetch(`http://localhost:3000/history?code=1132025`);
+      const res = await fetch(`${BACKEND_URL}/history?code=1132025`);
       if (!res.ok) {
         responseEl.textContent = "Forbidden.";
         return;
@@ -211,8 +211,6 @@ Please fill out the form below to send $0.00 to the void.
 
     cancelTyping = true;
     stopThinkingAnimation();
-
-    // increase request id so old results get ignored
     const requestId = ++activeRequest;
 
     if ((legalMode || fundMode) && question.toLowerCase() === "back") {
@@ -240,29 +238,26 @@ Please fill out the form below to send $0.00 to the void.
     }
 
     const qLower = question.toLowerCase();
-    if (qLower.includes("privacy policy")) { await showLegal(PRIVACY); return; }
-    if (qLower.includes("terms of service")) { await showLegal(TERMS); return; }
-    if (qLower.includes("fund") || qLower.includes("support")) { await showFunding(); return; }
+    if (qLower.includes("privacy policy")) return await showLegal(PRIVACY);
+    if (qLower.includes("terms of service")) return await showLegal(TERMS);
+    if (qLower.includes("fund") || qLower.includes("support")) return await showFunding();
 
-    // Normal AI query
     startThinkingAnimation();
     try {
-      const res = await fetch("http://localhost:3000/straight", {
+      const res = await fetch(`${BACKEND_URL}/straight`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
       const data = await res.json();
 
-      // ignore if another request was started since
       if (requestId !== activeRequest) return;
-
       stopThinkingAnimation();
       await typeOutText(data.answer || "No response.");
     } catch {
       if (requestId !== activeRequest) return;
       stopThinkingAnimation();
-      responseEl.textContent = "The AI became too gay to provide service.";
+      responseEl.textContent = "Server offline or unreachable.";
       footer.style.opacity = 1;
     }
   });
