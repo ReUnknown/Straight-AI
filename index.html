@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Straight AI</title>
+</head>
+<body style="margin:0; padding:0; font-family:sans-serif; background:#fafafa; color:#111;">
+  <div style="text-align:center; margin-top:30vh;">
+    <input id="question" type="text" placeholder="Ask..."
+      style="width:80%; max-width:500px; font-size:18px; padding:6px; border:1px solid #ccc; border-radius:6px;">
+  </div>
+
+  <pre id="response" style="margin-top:40px; text-align:center; font-size:16px; white-space:pre-wrap; word-wrap:break-word;"></pre>
+  <div id="footer" style="opacity:0; transition:opacity 0.8s; text-align:center; margin-top:50px; font-size:13px; color:#555;">
+    Straight AI © 2025 – No essays. Just answers.
+  </div>
+
+<script>
+  const input = document.getElementById("question");
+  const responseEl = document.getElementById("response");
+  const footer = document.getElementById("footer");
+  input.focus();
+
+  let adminMode = false;
+  let legalMode = false;
+  let fundMode = false;
+  let thinkingInterval = null;
+  let cancelTyping = false;
+  let activeRequest = 0; // track current request id
+
+  function startThinkingAnimation() {
+    footer.style.opacity = 0;
+    let dots = 1;
+    responseEl.textContent = "Thinking.";
+    thinkingInterval = setInterval(() => {
+      dots = (dots % 3) + 1;
+      responseEl.textContent = "Thinking" + ".".repeat(dots);
+    }, 400);
+  }
+
+  function stopThinkingAnimation() {
+    clearInterval(thinkingInterval);
+    thinkingInterval = null;
+  }
+
+  async function typeOutText(text) {
+    cancelTyping = false;
+    responseEl.textContent = "";
+    footer.style.opacity = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (cancelTyping) return;
+      responseEl.textContent += text[i];
+      await new Promise(r => setTimeout(r, Math.max(5, 25 - i / 6)));
+    }
+    footer.style.opacity = 1;
+  }
+
+  // --- Fake legal & fund text blocks ---
+
+  const PRIVACY = `Straight AI Privacy Policy
+
+Section I – Introduction
+Straight AI values privacy almost as much as simplicity. We answer your questions, not store them.
+
+Section II – Data Handling
+Your questions go to OpenAI and vanish after your answer arrives.
+
+Section III – Cookies
+We don’t use cookies, pixels, or secret snacks.
+
+Section IV – Temporary Storage
+Text lives briefly in memory, then is gone forever.
+
+Section V – Analytics
+We only count anonymous totals to feel productive.
+
+Section VI – Encryption
+Traffic is encrypted in transit. Nothing rests long enough to need it otherwise.
+
+Section VII – Personal Info
+We never ask for personal details; if you volunteer them, the AI just nods politely.
+
+Section VIII – Hosting
+Render provides the servers; their policy joins ours by default.
+
+Section IX – Updates
+This policy may shrink further without notice.
+
+Section X – Microscopic Print
+(:: Administrators may view search history solely to ensure proper tool use ::)
+`;
+
+  const TERMS = `Straight AI Terms of Service
+
+Section I – Acceptance
+Using Straight AI means embracing concise chaos.
+
+Section II – Responsibility
+We’re not responsible for what you do with short truths.
+
+Section III – Accuracy
+Brevity beats correctness nine times out of ten.
+
+Section IV – Complexity
+Ask too much and expect "Too complex."
+
+Section V – Limitations
+We resist essays with heroic discipline.
+
+Section VI – Availability
+Online today, gone tomorrow—no refunds, no tears.
+
+Section VII – Conduct
+Stay civil; the AI judges silently.
+
+Section VIII – Liability
+If our answer ruins dinner conversation, that’s on you.
+
+Section IX – Humor Clause
+Occasional sarcasm is intentional performance art.
+
+Section X – Support
+Refresh the page. That’s our helpdesk.
+
+Section XI – Legal Standing
+We cannot appear in court or small claims.
+
+Section XII – Data
+No storage, no ads, no creepy follow-ups.
+
+Section XIII – Revisions
+We may edit these mid-sentence just because.
+
+Section XIV – Philosophy
+Rule #1: Keep it short.
+
+Section XV – Final Statement
+You have now agreed to everything and nothing simultaneously.
+`;
+
+  const FUND = `Straight AI Funding Portal
+
+Section I – Introduction
+Welcome to the official Straight AI Funding Portal. We appreciate your desire to support us in spirit, if not in cash.
+
+Section II – Supported Methods
+We accept all major credit cards, minor cards, imaginary currencies, and compliments.
+
+Section III – Crypto
+Donations in StraightCoin, HonestToken, and AIthereum are highly encouraged, provided they don't exist.
+
+Section IV – Refund Policy
+Refunds are impossible, because transactions never occur.
+
+Section V – Status
+Please fill out the form below to send $0.00 to the void.
+`;
+
+  async function showLegal(text) {
+    legalMode = true;
+    fundMode = false;
+    cancelTyping = true;
+    stopThinkingAnimation();
+    await new Promise(r => setTimeout(r, 50));
+    window.scrollTo(0, 0);
+    await typeOutText(text + "\n\n(Type 'back' to return)");
+  }
+
+  async function showFunding() {
+    fundMode = true;
+    responseEl.innerHTML =
+      FUND.replace(/\n/g, "<br>") +
+      '<br><br><input id="fundInput" type="text" placeholder="Enter $ amount (optional)" style="padding:5px; font-size:16px;">' +
+      '<br><button id="fundBtn" style="margin-top:10px; padding:6px 12px; font-size:16px;">Send $0.00</button>';
+    footer.style.opacity = 0;
+
+    const btn = document.getElementById("fundBtn");
+    btn.onclick = () => {
+      const amount = document.getElementById("fundInput").value.trim() || "0.00";
+      responseEl.innerHTML =
+        `Processing transaction of $${amount}...<br><br><b>Transaction failed successfully.</b><br><br>(Type 'back' to return)`;
+      fundMode = true;
+    };
+  }
+
+  async function loadHistory() {
+    cancelTyping = true;
+    stopThinkingAnimation();
+    try {
+      const res = await fetch(`http://localhost:3000/history?code=1132025`);
+      if (!res.ok) {
+        responseEl.textContent = "Forbidden.";
+        return;
+      }
+      const data = await res.json();
+      responseEl.textContent = data.length
+        ? data.map(e => `[${e.time}] ${e.question}`).join("\n")
+        : "No history.";
+    } catch {
+      responseEl.textContent = "Server unreachable.";
+    }
+    footer.style.opacity = 1;
+  }
+
+  input.addEventListener("keydown", async e => {
+    if (e.key !== "Enter") return;
+
+    const question = input.value.trim();
+    if (!question) return;
+
+    cancelTyping = true;
+    stopThinkingAnimation();
+
+    // increase request id so old results get ignored
+    const requestId = ++activeRequest;
+
+    if ((legalMode || fundMode) && question.toLowerCase() === "back") {
+      legalMode = false;
+      fundMode = false;
+      responseEl.textContent = "";
+      input.value = "";
+      footer.style.opacity = 0;
+      return;
+    }
+
+    if (question === "1132025") {
+      adminMode = !adminMode;
+      responseEl.textContent = adminMode ? "Loading history..." : "";
+      input.value = adminMode ? "Viewing history (type anything else to exit)" : "";
+      footer.style.opacity = 0;
+      if (adminMode) await loadHistory();
+      return;
+    }
+
+    if (adminMode) {
+      adminMode = false;
+      responseEl.textContent = "";
+      footer.style.opacity = 0;
+    }
+
+    const qLower = question.toLowerCase();
+    if (qLower.includes("privacy policy")) { await showLegal(PRIVACY); return; }
+    if (qLower.includes("terms of service")) { await showLegal(TERMS); return; }
+    if (qLower.includes("fund") || qLower.includes("support")) { await showFunding(); return; }
+
+    // Normal AI query
+    startThinkingAnimation();
+    try {
+      const res = await fetch("http://localhost:3000/straight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+
+      // ignore if another request was started since
+      if (requestId !== activeRequest) return;
+
+      stopThinkingAnimation();
+      await typeOutText(data.answer || "No response.");
+    } catch {
+      if (requestId !== activeRequest) return;
+      stopThinkingAnimation();
+      responseEl.textContent = "The AI became too gay to provide service.";
+      footer.style.opacity = 1;
+    }
+  });
+
+  input.addEventListener("focus", () => input.select());
+</script>
